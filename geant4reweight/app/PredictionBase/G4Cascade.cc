@@ -1,6 +1,8 @@
 #include "Geant4/G4HadronInelasticProcess.hh"
 #include "Geant4/G4PionPlus.hh"
 #include "Geant4/G4PionMinus.hh"
+#include "Geant4/G4KaonPlus.hh"
+#include "Geant4/G4KaonMinus.hh"
 #include "Geant4/G4Proton.hh"
 #include "Geant4/G4ParticleDefinition.hh"
 #include "Geant4/G4DynamicParticle.hh"
@@ -154,11 +156,14 @@ int main(int argc, char * argv[]){
 
 
   TTree * tree = new TTree("tree","");
-  int nPi0 = 0, nPiPlus = 0, nPiMinus = 0, nProton, nNeutron;
+  int nPi0 = 0, nPiPlus = 0, nPiMinus = 0, nK0=0, nKPlus=0, nKMinus=0, nProton, nNeutron;
   double momentum;
   tree->Branch( "nPi0", &nPi0 );
   tree->Branch( "nPiPlus", &nPiPlus );
   tree->Branch( "nPiMinus", &nPiMinus );
+  tree->Branch( "nK0", &nK0 );
+  tree->Branch( "nKPlus", &nKPlus );
+  tree->Branch( "nKMinus", &nKMinus );
   tree->Branch( "nProton", &nProton );
   tree->Branch( "nNeutron", &nNeutron );
   tree->Branch( "momentum", &momentum );
@@ -173,6 +178,8 @@ int main(int argc, char * argv[]){
   G4PionMinus * piminus = 0x0;
   G4Proton    * proton = 0x0;
   G4Neutron   * neutron = 0x0;
+  G4KaonPlus * kplus=0x0;
+  G4KaonMinus * kminus=0x0;
   G4ParticleDefinition * part_def = 0x0;
   std::string inel_name = "";
   switch( theConfig.type ){
@@ -229,6 +236,18 @@ int main(int argc, char * argv[]){
       break;
 
     }
+    case 321:
+      std::cout << "Chose kPlus" << std::endl;
+      part_def = kplus->Definition();
+      inel_name = "kaon+Inelastic";
+      break;
+
+    case -321:
+      std::cout << "Chose kMinus" << std::endl;
+      part_def = kminus->Definition();
+      inel_name = "kaon-Inelastic";
+      break;
+
 
     case -1:
     {
@@ -244,7 +263,7 @@ int main(int argc, char * argv[]){
     }
 
     default:
-      std::cout << "Please specify either 211, -211, 2112, or 2212" << std::endl;
+      std::cout << "Please specify either 211, -211, 2112, 321, -321, or 2212" << std::endl;
       fout->cd();
       fout->Close();
       //delete rm;
@@ -318,6 +337,7 @@ int main(int argc, char * argv[]){
       nPiMinus = 0;
       nProton = 0;
       nNeutron = 0;
+      nK0=0; nKPlus=0; nKMinus=0;
       momentum = dynamic_part->GetTotalMomentum();
       G4VParticleChange * thePC = inelastic_proc->PostStepDoIt( *theTrack, *theStep );
 
@@ -340,7 +360,27 @@ int main(int argc, char * argv[]){
             if (theConfig.AboveThreshold(
                     part->GetPDGcode(), part->GetTotalMomentum())) 
               ++nPi0;
-            break;          
+            break;   
+          case( 321 ):
+            if (theConfig.AboveThreshold(
+                    part->GetPDGcode(), part->GetTotalMomentum())) 
+              ++nKPlus;
+            break;
+          case( -321):
+            if (theConfig.AboveThreshold(
+                    part->GetPDGcode(), part->GetTotalMomentum())) 
+              ++nKMinus;
+            break;
+          case( 130 ):
+            if (theConfig.AboveThreshold(
+                    part->GetPDGcode(), part->GetTotalMomentum())) 
+              ++nK0;
+            break;   
+          case( 310 ):
+            if (theConfig.AboveThreshold(
+                    part->GetPDGcode(), part->GetTotalMomentum())) 
+              ++nK0;
+            break;       
 
           case( 2212 ):
             if (theConfig.AboveThreshold(
@@ -398,6 +438,32 @@ int main(int argc, char * argv[]){
     }
     cuts["inel"] = "nPi0 == 0 && nPiPlus == 0 && nPiMinus == 1";
     cuts["dcex"] = "nPi0 == 0 && nPiPlus == 1 && nPiMinus == 0";
+  }
+  else if( theConfig.type == 321 ){
+    cuts["abs"] = "nK0 == 0 && nKPlus == 0 && nKMinus == 0";
+    if (!theConfig.npi0) {
+      cuts["prod"] = " (nK0 + nKPlus + nKMinus) > 1";
+      cuts["cex"] = "nK0 == 1 && nKPlus == 0 && nKMinus == 0";
+    }
+    else {
+      cuts["prod"] = "((nKPlus + nKMinus) > 1) || (nK0 > 0 && ((nKPlus + nKMinus) > 0))";
+      cuts["cex"] = "nK0 > 0 && nKPlus == 0 && nKMinus == 0";
+    }
+    cuts["inel"] = "nK0 == 0 && nKPlus == 1 && nKMinus == 0";
+    cuts["dcex"] = "nK0 == 0 && nKPlus == 0 && nKMinus == 1";
+  }
+  else if( theConfig.type == -321){
+    cuts["abs"] = "nK0 == 0 && nKPlus == 0 && nKMinus == 0";
+    if (!theConfig.npi0) {
+      cuts["prod"] = " (nK0 + nKPlus + nKMinus) > 1";
+      cuts["cex"] = "nK0 == 1 && nKPlus == 0 && nKMinus == 0";
+    }
+    else {
+      cuts["prod"] = "((nKPlus + nKMinus) > 1) || (nK0 > 0 && ((nKPlus + nKMinus) > 0))";
+      cuts["cex"] = "nK0 > 0 && nKPlus == 0 && nKMinus == 0";
+    }
+    cuts["inel"] = "nK0 == 0 && nKPlus == 0 && nKMinus == 1";
+    cuts["dcex"] = "nK0 == 0 && nKPlus == 1 && nKMinus == 0";
   }
   else if( theConfig.type == 2212 || theConfig.type == 2112 ){
     cuts["0n0p"] = "nProton == 0 && nNeutron == 0";
